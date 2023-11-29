@@ -47,3 +47,39 @@ CREATE OR REPLACE FUNCTION valida_medico_ambulatorio() RETURNS TRIGGER AS $$
         RETURN NEW;
     end;
     $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER fValidaMedicoAmbulatorio before insert on medicos
+    FOR EACH ROW execute procedure valida_medico_ambulatorio();
+
+--4
+CREATE OR REPLACE FUNCTION realoca_capacidade() RETURNS TRIGGER AS $$
+    DECLARE ROEW RECORD;
+    BEGIN
+        FOR row in
+            SELECT * FROM ambulatorios
+                     WHERE andar = old.andar AND nroa != old.nroa
+        LOOP
+
+            UPDATE ambulatorios set capacidade = capacidade + old.capacidade WHERE nroa = row.nroa;
+            EXIT;
+
+        end loop;
+    end;
+$$ LANGUAGE plpgsql;
+
+-- OU
+
+CREATE FUNCTION realocarCapacidade() RETURNS trigger as $$
+DECLARE num integer DEFAULT -1;
+BEGIN
+    SELECT nroa INTO num FROM ambulatorios WHERE andar = old.andar and nroa!=old.nroa LIMIT 1;
+    IF num>-1 THEN
+       UPDATE ambulatorios SET capacidade = capacidade + old.capacidade WHERE nroa = num;
+    END IF;
+    RETURN OLD;
+END;
+$$
+LANGUAGE plpgsql;
+
+create trigger fRealoca_capacidade BEFORE delete on ambulatorios
+    FOR EACH ROW EXECUTE PROCEDURE realoca_capacidade();
